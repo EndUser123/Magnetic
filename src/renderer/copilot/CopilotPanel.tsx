@@ -401,7 +401,7 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
           </div>
         </div>
       )}
-      {provider === 'apiKey' && keyLoaded && !needsKey && (
+      {provider === 'apiKey' && keyLoaded && (
         <div className="copilot-setup" data-testid="copilot-endpoint">
           <p>
             Optional: point the key provider at an Anthropic-compatible endpoint (for example a
