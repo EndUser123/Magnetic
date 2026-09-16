@@ -168,8 +168,19 @@ export function registerIpc(deps: IpcDeps, env: NodeJS.ProcessEnv = process.env)
       .strictObject({
         autoTranscribe: z.boolean().optional(),
         anthropicApiKey: z.string().nullable().optional(),
-        copilotBaseUrl: z.string().min(1).nullable().optional(),
-        copilotModel: z.string().min(1).nullable().optional(),
+        copilotBaseUrl: z
+          .string()
+          .refine((value) => {
+            try {
+              new URL(value)
+              return true
+            } catch {
+              return false
+            }
+          }, 'must be an absolute URL (e.g. http://127.0.0.1:8081)')
+          .nullable()
+          .optional(),
+        copilotModel: z.string().nullable().optional(),
         agentAccess: z.boolean().optional(),
         agentToken: z.string().min(8).optional(),
         agentMediaFolders: z.array(z.string()).optional(),

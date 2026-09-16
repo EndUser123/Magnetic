@@ -57,8 +57,9 @@ export function getCopilotBaseUrl(): string | null {
 
 export function setCopilotBaseUrl(url: string | null): void {
   const settings = { ...readSettings() }
-  if (url === null || url === '') delete settings.copilotBaseUrl
-  else settings.copilotBaseUrl = url
+  const trimmed = url?.trim() ?? ''
+  if (trimmed === '') delete settings.copilotBaseUrl
+  else settings.copilotBaseUrl = trimmed
   writeSettings(settings)
 }
 
@@ -68,8 +69,9 @@ export function getCopilotModel(): string | null {
 
 export function setCopilotModel(model: string | null): void {
   const settings = { ...readSettings() }
-  if (model === null || model === '') delete settings.copilotModel
-  else settings.copilotModel = model
+  const trimmed = model?.trim() ?? ''
+  if (trimmed === '') delete settings.copilotModel
+  else settings.copilotModel = trimmed
   writeSettings(settings)
 }
 

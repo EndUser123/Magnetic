@@ -9,7 +9,15 @@ vi.mock('electron', () => ({
   app: { getPath: () => userData }
 }))
 
-import { LibraryStore, getAutoTranscribe, setAutoTranscribe } from './library'
+import {
+  LibraryStore,
+  getAutoTranscribe,
+  setAutoTranscribe,
+  getCopilotBaseUrl,
+  setCopilotBaseUrl,
+  getCopilotModel,
+  setCopilotModel
+} from './library'
 
 let dir: string
 
@@ -30,5 +38,34 @@ describe('rememberAsLastUsed', () => {
     store.rememberAsLastUsed()
     expect(getAutoTranscribe()).toBe(false) // was wiped back to default true
     expect(LibraryStore.resolveStartupPath()).toBe(join(dir, 'Test.mglib'))
+  })
+})
+
+describe('copilot endpoint settings', () => {
+  it('round-trips a base URL and model id', () => {
+    setCopilotBaseUrl('http://127.0.0.1:8081')
+    setCopilotModel('claude-sonnet-4-5')
+    expect(getCopilotBaseUrl()).toBe('http://127.0.0.1:8081')
+    expect(getCopilotModel()).toBe('claude-sonnet-4-5')
+  })
+
+  it('treats null and empty string as delete', () => {
+    setCopilotBaseUrl('http://127.0.0.1:8081')
+    setCopilotBaseUrl(null)
+    expect(getCopilotBaseUrl()).toBeNull()
+    setCopilotModel('m1')
+    setCopilotModel('')
+    expect(getCopilotModel()).toBeNull()
+  })
+
+  it('trims stored values and treats whitespace-only as delete', () => {
+    setCopilotBaseUrl('  http://127.0.0.1:8081  ')
+    expect(getCopilotBaseUrl()).toBe('http://127.0.0.1:8081')
+    setCopilotBaseUrl('   ')
+    expect(getCopilotBaseUrl()).toBeNull()
+    setCopilotModel('  m2  ')
+    expect(getCopilotModel()).toBe('m2')
+    setCopilotModel('   ')
+    expect(getCopilotModel()).toBeNull()
   })
 })
