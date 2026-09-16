@@ -347,6 +347,22 @@ export function TimelinePanel(): ReactNode {
           {flicksToTimecode(playheadFlicks, fps)}
         </span>
         <span className="timeline-tools">
+          <button
+            type="button"
+            data-testid="timeline-undo"
+            title="Undo (Ctrl+Z) — one step per edit"
+            onClick={() => useTimelineStore.getState().undo()}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            data-testid="timeline-redo"
+            title="Redo (Ctrl+Shift+Z)"
+            onClick={() => useTimelineStore.getState().redo()}
+          >
+            ↷
+          </button>
           {(
             [
               ['select', 'A', 'Select — drag bodies to rearrange, edges to ripple trim'],
