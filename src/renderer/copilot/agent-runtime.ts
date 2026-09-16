@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import type { Sequence } from '../../shared/timeline/model'
 import { EDIT_TOOLS, executeEditTool } from './tools'
 
@@ -41,6 +42,8 @@ export interface CopilotTurnRequest {
   baseUrl?: string | null
   /** Model id override. Absent = COPILOT_MODEL. */
   model?: string | null
+  /** Wire protocol the endpoint speaks. Absent = anthropic. */
+  protocol?: 'anthropic' | 'openai'
   /** buildCopilotContext output for the BASE sequence. */
   context: string
   /** Full chat history, latest user question last. */
@@ -151,10 +154,19 @@ async function streamFakeTurn(
  * scratch copy via executeEditTool (kernel ops + validate gate); the caller
  * turns a changed scratch into a pendingProposal for the ghost-diff review.
  */
+/**
+ * Dispatch on the configured wire protocol. Both adapters share the test hook,
+ * the tool executor, and the ghost-diff result contract — only the wire format
+ * differs.
+ */
 export async function streamCopilotTurn(request: CopilotTurnRequest): Promise<CopilotTurnResult> {
   const fake = fakeAdvisor()
   if (fake !== null) return streamFakeTurn(request, fake)
+  if (request.protocol === 'openai') return streamOpenAITurn(request)
+  return streamAnthropicTurn(request)
+}
 
+async function streamAnthropicTurn(request: CopilotTurnRequest): Promise<CopilotTurnResult> {
   const client = new Anthropic({
     apiKey: request.apiKey,
     ...(request.baseUrl ? { baseURL: request.baseUrl } : {}),
@@ -267,6 +279,153 @@ export async function streamCopilotTurn(request: CopilotTurnRequest): Promise<Co
       })
     }
     messages.push({ role: 'user', content: results })
+  }
+
+  request.onDelta('\n\n[stopped: tool-iteration cap reached — review what was proposed so far]')
+  return {
+    reply: replyParts.join('') + '\n[stopped at the tool-iteration cap]',
+    ops,
+    proposed: scratch
+  }
+}
+
+/** One in-flight OpenAI tool call being accumulated from streamed argument fragments. */
+export interface OpenAIToolCallAccumulator {
+  index: number
+  id: string
+  name: string
+  arguments: string
+}
+
+/** Apply one streamed tool_call delta fragment to the accumulator map. Exported for tests. */
+export function applyOpenAIToolCallFragment(
+  pending: Map<number, OpenAIToolCallAccumulator>,
+  fragment: {
+    index?: number | null
+    id?: string | null
+    function?: { name?: string | null; arguments?: string | null } | null
+  }
+): void {
+  const index = fragment.index ?? 0
+  const slot = pending.get(index) ?? { index, id: '', name: '', arguments: '' }
+  if (fragment.id) slot.id = fragment.id
+  if (fragment.function?.name) slot.name = fragment.function.name
+  if (fragment.function?.arguments) slot.arguments += fragment.function.arguments
+  pending.set(index, slot)
+}
+
+/**
+ * One copilot turn over the OpenAI chat-completions protocol — the wire format
+ * spoken by z.ai's coding endpoint, OpenRouter, DeepSeek, llama.cpp, vLLM, and
+ * most gateways. Same scratch-sequence tool executor and ghost-diff contract
+ * as the Anthropic adapter; only request/response shaping differs. Filmstrip
+ * results degrade to text on this transport (image tool-result parts are not
+ * portable across OpenAI-compatible providers).
+ */
+async function streamOpenAITurn(request: CopilotTurnRequest): Promise<CopilotTurnResult> {
+  const client = new OpenAI({
+    apiKey: request.apiKey,
+    baseURL: request.baseUrl ?? undefined,
+    dangerouslyAllowBrowser: true
+  })
+
+  const anthropicTools: Anthropic.Tool[] = [...EDIT_TOOLS, READ_TIMELINE_TOOL]
+  if (request.flowOf !== undefined) anthropicTools.push(CHECK_FLOW_TOOL)
+  if (request.filmstripOf !== undefined) anthropicTools.push(VIEW_FILMSTRIP_TOOL)
+  const openaiTools = anthropicTools.map((tool) => ({
+    type: 'function' as const,
+    function: { name: tool.name, description: tool.description, parameters: tool.input_schema }
+  }))
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: 'system', content: `${SYSTEM_PROMPT}\n\n${request.context}` },
+    ...request.turns.map((turn) => ({ role: turn.role, content: turn.text }))
+  ]
+
+  let scratch = request.base
+  const ops: CopilotOpEntry[] = []
+  const replyParts: string[] = []
+
+  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+    const stream = await client.chat.completions.create(
+      {
+        model: request.model ?? COPILOT_MODEL,
+        max_tokens: 16000,
+        messages,
+        tools: openaiTools,
+        stream: true
+      },
+      { signal: request.signal }
+    )
+
+    let replyText = ''
+    const pending = new Map<number, OpenAIToolCallAccumulator>()
+    let finishReason: string | null = null
+    for await (const chunk of stream) {
+      const choice = chunk.choices[0]
+      if (choice === undefined) continue
+      if (choice.delta?.content) {
+        replyText += choice.delta.content
+        request.onDelta(choice.delta.content)
+      }
+      for (const fragment of choice.delta?.tool_calls ?? []) {
+        applyOpenAIToolCallFragment(pending, fragment)
+      }
+      if (choice.finish_reason) finishReason = choice.finish_reason
+    }
+    replyParts.push(replyText)
+
+    if (finishReason !== 'tool_calls' || pending.size === 0) {
+      return { reply: replyParts.join(''), ops, proposed: scratch }
+    }
+
+    const orderedCalls = [...pending.values()].sort((a, b) => a.index - b.index)
+    messages.push({
+      role: 'assistant',
+      content: replyText === '' ? null : replyText,
+      tool_calls: orderedCalls.map((call) => ({
+        id: call.id,
+        type: 'function' as const,
+        function: { name: call.name, arguments: call.arguments }
+      }))
+    })
+
+    for (const call of orderedCalls) {
+      let input: unknown = {}
+      try {
+        input = JSON.parse(call.arguments === '' ? '{}' : call.arguments)
+      } catch {
+        input = {}
+      }
+      if (call.name === READ_TIMELINE_TOOL.name) {
+        messages.push({ role: 'tool', tool_call_id: call.id, content: request.contextOf(scratch) })
+        continue
+      }
+      if (call.name === CHECK_FLOW_TOOL.name && request.flowOf !== undefined) {
+        messages.push({ role: 'tool', tool_call_id: call.id, content: request.flowOf(scratch) })
+        continue
+      }
+      if (call.name === VIEW_FILMSTRIP_TOOL.name && request.filmstripOf !== undefined) {
+        const clipId = (input as { clip_id?: unknown })?.clip_id
+        const strip = typeof clipId === 'string' ? await request.filmstripOf(clipId) : null
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          content:
+            strip === null
+              ? 'no filmstrip available for that clip id'
+              : `${strip.note} (image frames are not available on the OpenAI-protocol transport — judge by transcript and timing)`
+        })
+        continue
+      }
+      const outcome = executeEditTool(scratch, call.name, input)
+      scratch = outcome.next
+      if (outcome.summary !== null) {
+        ops.push({ name: call.name, input, summary: outcome.summary })
+      }
+      if (outcome.timeRefFlicks !== null) request.onToolTime?.(outcome.timeRefFlicks)
+      messages.push({ role: 'tool', tool_call_id: call.id, content: outcome.resultText })
+    }
   }
 
   request.onDelta('\n\n[stopped: tool-iteration cap reached — review what was proposed so far]')

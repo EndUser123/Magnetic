@@ -288,6 +288,7 @@ export interface MagneticApi {
     anthropicApiKey: string | null
     copilotBaseUrl: string | null
     copilotModel: string | null
+    copilotProtocol: 'anthropic' | 'openai' | null
     agentAccess: boolean
     agentToken: string | null
     agentMediaFolders: string[]
@@ -298,6 +299,7 @@ export interface MagneticApi {
     anthropicApiKey?: string | null
     copilotBaseUrl?: string | null
     copilotModel?: string | null
+    copilotProtocol?: 'anthropic' | 'openai' | null
     agentAccess?: boolean
     agentToken?: string
     agentMediaFolders?: string[]

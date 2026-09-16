@@ -61,6 +61,8 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
   const [model, setModel] = useState<string | null>(null)
   const [baseUrlDraft, setBaseUrlDraft] = useState('')
   const [modelDraft, setModelDraft] = useState('')
+  const [protocol, setProtocol] = useState<'anthropic' | 'openai' | null>(null)
+  const [protocolDraft, setProtocolDraft] = useState<'anthropic' | 'openai'>('anthropic')
   const [cliStatus, setCliStatus] = useState<{ found: boolean; version: string | null } | null>(
     null
   )
@@ -83,6 +85,13 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
       setBaseUrlDraft(settings.copilotBaseUrl ?? '')
       setModel(settings.copilotModel)
       setModelDraft(settings.copilotModel ?? '')
+      setProtocol(settings.copilotProtocol)
+      setProtocolDraft(
+        settings.copilotProtocol ??
+          ((settings.copilotBaseUrl ?? '').includes('anthropic') || settings.copilotBaseUrl === null
+            ? 'anthropic'
+            : 'openai')
+      )
       setProviderSetting(settings.copilotProvider)
     })
     checkCli()
@@ -191,11 +200,13 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
     void window.api
       .setSettings({
         copilotBaseUrl: nextBaseUrl === '' ? null : nextBaseUrl,
-        copilotModel: nextModel === '' ? null : nextModel
+        copilotModel: nextModel === '' ? null : nextModel,
+        copilotProtocol: nextBaseUrl === '' ? null : protocolDraft
       })
       .then(() => {
         setBaseUrl(nextBaseUrl === '' ? null : nextBaseUrl)
         setModel(nextModel === '' ? null : nextModel)
+        setProtocol(nextBaseUrl === '' ? null : protocolDraft)
       })
   }
 
@@ -280,6 +291,7 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
             apiKey: apiKey as string,
             baseUrl,
             model,
+            protocol: protocol ?? undefined,
             turns: nextTurns
           })
     void turnPromise
@@ -404,12 +416,20 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
       {provider === 'apiKey' && keyLoaded && (
         <div className="copilot-setup" data-testid="copilot-endpoint">
           <p>
-            Optional: point the key provider at an Anthropic-compatible endpoint (for example a
-            local gateway such as http://127.0.0.1:8081) and set the model id it exposes. Empty
-            fields mean api.anthropic.com with the built-in model. Remote (non-localhost) endpoints
-            are blocked by the app's content-security policy; local gateways are allowed.
+            Optional: point the key provider at any compatible endpoint. Protocol selects the wire
+            format — Anthropic-compatible (default; e.g. api.anthropic.com, z.ai's /api/anthropic)
+            or OpenAI-compatible chat/completions (e.g. z.ai's coding endpoint, OpenRouter,
+            llama.cpp). Empty base URL means api.anthropic.com with the built-in model.
           </p>
           <div className="copilot-input-row">
+            <select
+              data-testid="copilot-protocol"
+              value={protocolDraft}
+              onChange={(event) => setProtocolDraft(event.target.value as 'anthropic' | 'openai')}
+            >
+              <option value="anthropic">Anthropic-compatible</option>
+              <option value="openai">OpenAI-compatible</option>
+            </select>
             <input
               type="text"
               data-testid="copilot-baseurl-input"

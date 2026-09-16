@@ -22,6 +22,8 @@ interface SettingsJson {
   copilotBaseUrl?: string
   /** Model id the API-key provider requests. Absent = the built-in default. */
   copilotModel?: string
+  /** Wire protocol the API-key endpoint speaks: 'anthropic' (messages) or 'openai' (chat/completions). */
+  copilotProtocol?: 'anthropic' | 'openai'
   /** Agent Access: external agents may connect through the MCP sidecar. Off by default. */
   agentAccess?: boolean
   /** Bearer token for the agent sidecar; generated on first enable, rotatable. */
@@ -72,6 +74,18 @@ export function setCopilotModel(model: string | null): void {
   const trimmed = model?.trim() ?? ''
   if (trimmed === '') delete settings.copilotModel
   else settings.copilotModel = trimmed
+  writeSettings(settings)
+}
+
+export function getCopilotProtocol(): 'anthropic' | 'openai' | null {
+  const value = readSettings().copilotProtocol
+  return value === 'anthropic' || value === 'openai' ? value : null
+}
+
+export function setCopilotProtocol(protocol: 'anthropic' | 'openai' | null): void {
+  const settings = { ...readSettings() }
+  if (protocol === null) delete settings.copilotProtocol
+  else settings.copilotProtocol = protocol
   writeSettings(settings)
 }
 

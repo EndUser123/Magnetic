@@ -42,6 +42,7 @@ import {
   getAutoTranscribe,
   getCopilotBaseUrl,
   getCopilotModel,
+  getCopilotProtocol,
   getCopilotProvider,
   setAgentAccess,
   setAgentMediaFolders,
@@ -50,6 +51,7 @@ import {
   setAutoTranscribe,
   setCopilotBaseUrl,
   setCopilotModel,
+  setCopilotProtocol,
   setCopilotProvider
 } from './project-io/library'
 
@@ -123,6 +125,7 @@ app.whenReady().then(async () => {
       anthropicApiKey: getAnthropicApiKey(),
       copilotBaseUrl: getCopilotBaseUrl(),
       copilotModel: getCopilotModel(),
+      copilotProtocol: getCopilotProtocol(),
       agentAccess: getAgentAccess(),
       agentToken: getAgentToken(),
       agentMediaFolders: getAgentMediaFolders(),
@@ -133,6 +136,7 @@ app.whenReady().then(async () => {
       if (settings.anthropicApiKey !== undefined) setAnthropicApiKey(settings.anthropicApiKey)
       if (settings.copilotBaseUrl !== undefined) setCopilotBaseUrl(settings.copilotBaseUrl)
       if (settings.copilotModel !== undefined) setCopilotModel(settings.copilotModel)
+      if (settings.copilotProtocol !== undefined) setCopilotProtocol(settings.copilotProtocol)
       if (settings.agentToken !== undefined) setAgentToken(settings.agentToken)
       if (settings.agentMediaFolders !== undefined) setAgentMediaFolders(settings.agentMediaFolders)
       if (settings.copilotProvider !== undefined) setCopilotProvider(settings.copilotProvider)

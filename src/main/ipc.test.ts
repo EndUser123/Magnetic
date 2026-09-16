@@ -30,6 +30,7 @@ const deps: IpcDeps = {
     anthropicApiKey: null,
     copilotBaseUrl: null,
     copilotModel: null,
+    copilotProtocol: null,
     agentAccess: false,
     agentToken: null,
     agentMediaFolders: [],
