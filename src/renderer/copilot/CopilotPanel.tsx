@@ -63,6 +63,7 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
   const [modelDraft, setModelDraft] = useState('')
   const [protocol, setProtocol] = useState<'anthropic' | 'openai' | null>(null)
   const [protocolDraft, setProtocolDraft] = useState<'anthropic' | 'openai'>('anthropic')
+  const [copied, setCopied] = useState(false)
   const [cliStatus, setCliStatus] = useState<{ found: boolean; version: string | null } | null>(
     null
   )
@@ -208,6 +209,16 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
         setModel(nextModel === '' ? null : nextModel)
         setProtocol(nextBaseUrl === '' ? null : protocolDraft)
       })
+  }
+
+  const copyChat = (): void => {
+    const text = turns
+      .map((turn) => `${turn.role === 'user' ? 'You' : 'Copilot'}: ${turn.text}`)
+      .join('\n\n')
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    })
   }
 
   const send = (): void => {
@@ -457,11 +468,19 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
       )}
       {!needsKey && !needsCli && keyLoaded && (
         <>
+          {turns.length > 0 && (
+            <div className="copilot-log-tools">
+              <button type="button" data-testid="copilot-copy" onClick={copyChat}>
+                {copied ? 'Copied ✓' : 'Copy chat'}
+              </button>
+            </div>
+          )}
           <div className="copilot-log" data-testid="copilot-log" ref={logRef}>
             {turns.length === 0 && streaming === null && (
               <div className="browser-empty">
-                Ask about the open cut — “what happens in the first 30 seconds?”, “where does it
-                drag?”, “which takes mention the launch date?”
+                Try an edit instruction — “remove the dead air after the intro”, “cut the part
+                where I repeat myself”, “tighten the tail after the last word” — or ask about the
+                open cut (“what happens in the first 30 seconds?”).
               </div>
             )}
             {turns.map((turn, index) => (
@@ -564,7 +583,7 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
             <input
               type="text"
               data-testid="copilot-question"
-              placeholder="Ask about this cut…"
+              placeholder='Edit instruction or question — e.g. "remove the dead air after the intro"…'
               value={question}
               disabled={streaming !== null}
               onChange={(event) => setQuestion(event.target.value)}

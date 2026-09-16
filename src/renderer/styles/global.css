@@ -1467,6 +1467,14 @@ select,
   display: flex;
   flex-direction: column;
   gap: 6px;
+  user-select: text;
+  cursor: text;
+}
+
+.copilot-log-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .copilot-msg {
