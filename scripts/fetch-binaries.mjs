@@ -38,7 +38,7 @@ const CACHE_DIR = join(BIN_DIR, '.cache')
 
 const FFMPEG = {
   name: 'ffmpeg 8.1.1 essentials',
-  url: 'https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.1-essentials_build.zip',
+  url: 'https://github.com/GyanD/codexffmpeg/releases/download/8.1.1/ffmpeg-8.1.1-essentials_build.zip',
   sha256: '6f58ce889f59c311410f7d2b18895b33c03456463486f3b1ebc93d97a0f54541',
   archive: 'ffmpeg-8.1.1-essentials_build.zip',
   outputs: ['ffmpeg.exe', 'ffprobe.exe']
