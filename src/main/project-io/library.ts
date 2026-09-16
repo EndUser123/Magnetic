@@ -18,6 +18,10 @@ interface SettingsJson {
   autoTranscribe?: boolean
   /** Anthropic API key for the Copilot advisor. Stored here (userData), never in the renderer's localStorage, never logged. */
   anthropicApiKey?: string
+  /** Anthropic-compatible base URL for the API-key provider (e.g. a local gateway). Absent = api.anthropic.com. */
+  copilotBaseUrl?: string
+  /** Model id the API-key provider requests. Absent = the built-in default. */
+  copilotModel?: string
   /** Agent Access: external agents may connect through the MCP sidecar. Off by default. */
   agentAccess?: boolean
   /** Bearer token for the agent sidecar; generated on first enable, rotatable. */
@@ -44,6 +48,28 @@ export function setAnthropicApiKey(key: string | null): void {
   const settings = { ...readSettings() }
   if (key === null || key === '') delete settings.anthropicApiKey
   else settings.anthropicApiKey = key
+  writeSettings(settings)
+}
+
+export function getCopilotBaseUrl(): string | null {
+  return readSettings().copilotBaseUrl ?? null
+}
+
+export function setCopilotBaseUrl(url: string | null): void {
+  const settings = { ...readSettings() }
+  if (url === null || url === '') delete settings.copilotBaseUrl
+  else settings.copilotBaseUrl = url
+  writeSettings(settings)
+}
+
+export function getCopilotModel(): string | null {
+  return readSettings().copilotModel ?? null
+}
+
+export function setCopilotModel(model: string | null): void {
+  const settings = { ...readSettings() }
+  if (model === null || model === '') delete settings.copilotModel
+  else settings.copilotModel = model
   writeSettings(settings)
 }
 

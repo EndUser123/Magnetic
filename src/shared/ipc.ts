@@ -286,6 +286,8 @@ export interface MagneticApi {
   getSettings(): Promise<{
     autoTranscribe: boolean
     anthropicApiKey: string | null
+    copilotBaseUrl: string | null
+    copilotModel: string | null
     agentAccess: boolean
     agentToken: string | null
     agentMediaFolders: string[]
@@ -294,6 +296,8 @@ export interface MagneticApi {
   setSettings(settings: {
     autoTranscribe?: boolean
     anthropicApiKey?: string | null
+    copilotBaseUrl?: string | null
+    copilotModel?: string | null
     agentAccess?: boolean
     agentToken?: string
     agentMediaFolders?: string[]

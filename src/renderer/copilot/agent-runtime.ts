@@ -37,6 +37,10 @@ export interface AdvisorTurn {
 
 export interface CopilotTurnRequest {
   apiKey: string
+  /** Anthropic-compatible base URL override (e.g. a local gateway). Absent = api.anthropic.com. */
+  baseUrl?: string | null
+  /** Model id override. Absent = COPILOT_MODEL. */
+  model?: string | null
   /** buildCopilotContext output for the BASE sequence. */
   context: string
   /** Full chat history, latest user question last. */
@@ -153,6 +157,7 @@ export async function streamCopilotTurn(request: CopilotTurnRequest): Promise<Co
 
   const client = new Anthropic({
     apiKey: request.apiKey,
+    ...(request.baseUrl ? { baseURL: request.baseUrl } : {}),
     dangerouslyAllowBrowser: true,
     defaultHeaders: { 'anthropic-dangerous-direct-browser-access': 'true' }
   })
@@ -176,7 +181,7 @@ export async function streamCopilotTurn(request: CopilotTurnRequest): Promise<Co
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
     const stream = client.messages.stream({
-      model: COPILOT_MODEL,
+      model: request.model ?? COPILOT_MODEL,
       max_tokens: 16000,
       thinking: { type: 'adaptive' },
       system,

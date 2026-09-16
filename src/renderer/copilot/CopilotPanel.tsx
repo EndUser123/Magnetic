@@ -57,6 +57,10 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
   const [keyLoaded, setKeyLoaded] = useState(false)
   const [keyDraft, setKeyDraft] = useState('')
   const [editingKey, setEditingKey] = useState(false)
+  const [baseUrl, setBaseUrl] = useState<string | null>(null)
+  const [model, setModel] = useState<string | null>(null)
+  const [baseUrlDraft, setBaseUrlDraft] = useState('')
+  const [modelDraft, setModelDraft] = useState('')
   const [cliStatus, setCliStatus] = useState<{ found: boolean; version: string | null } | null>(
     null
   )
@@ -75,6 +79,10 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
     void window.api.getSettings().then((settings) => {
       setApiKey(settings.anthropicApiKey)
       setKeyLoaded(true)
+      setBaseUrl(settings.copilotBaseUrl)
+      setBaseUrlDraft(settings.copilotBaseUrl ?? '')
+      setModel(settings.copilotModel)
+      setModelDraft(settings.copilotModel ?? '')
       setProviderSetting(settings.copilotProvider)
     })
     checkCli()
@@ -177,6 +185,20 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
     })
   }
 
+  const saveEndpoint = (): void => {
+    const nextBaseUrl = baseUrlDraft.trim()
+    const nextModel = modelDraft.trim()
+    void window.api
+      .setSettings({
+        copilotBaseUrl: nextBaseUrl === '' ? null : nextBaseUrl,
+        copilotModel: nextModel === '' ? null : nextModel
+      })
+      .then(() => {
+        setBaseUrl(nextBaseUrl === '' ? null : nextBaseUrl)
+        setModel(nextModel === '' ? null : nextModel)
+      })
+  }
+
   const send = (): void => {
     const chat = useCopilotChat.getState()
     const text = question.trim()
@@ -253,7 +275,13 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
             useCopilotChat.getState().setCliSessionId(result.sessionId)
             return result
           })
-        : streamCopilotTurn({ ...shared, apiKey: apiKey as string, turns: nextTurns })
+        : streamCopilotTurn({
+            ...shared,
+            apiKey: apiKey as string,
+            baseUrl,
+            model,
+            turns: nextTurns
+          })
     void turnPromise
       .then((result) => {
         const current = useCopilotChat.getState()
@@ -341,8 +369,9 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
       {needsKey && (
         <div className="copilot-setup" data-testid="copilot-setup">
           <p>
-            The copilot talks to the Anthropic API with your own key. It is stored on this machine
-            (app settings), sent only to api.anthropic.com, and never logged.
+            The copilot talks to the Anthropic-compatible API with your own key. It is stored on
+            this machine (app settings) and never logged. Default endpoint: api.anthropic.com — or
+            set your own below.
           </p>
           <div className="copilot-input-row">
             <input
@@ -369,6 +398,40 @@ export function CopilotPanel({ onClose }: { onClose(): void }): ReactNode {
                 Cancel
               </button>
             )}
+          </div>
+        </div>
+      )}
+      {provider === 'apiKey' && keyLoaded && !needsKey && (
+        <div className="copilot-setup" data-testid="copilot-endpoint">
+          <p>
+            Optional: point the key provider at an Anthropic-compatible endpoint (for example a
+            local gateway such as http://127.0.0.1:8081) and set the model id it exposes. Empty
+            fields mean api.anthropic.com with the built-in model. Remote (non-localhost) endpoints
+            are blocked by the app's content-security policy; local gateways are allowed.
+          </p>
+          <div className="copilot-input-row">
+            <input
+              type="text"
+              data-testid="copilot-baseurl-input"
+              placeholder="Base URL (empty = api.anthropic.com)"
+              value={baseUrlDraft}
+              onChange={(event) => setBaseUrlDraft(event.target.value)}
+            />
+            <input
+              type="text"
+              data-testid="copilot-model-input"
+              placeholder="Model id (empty = built-in)"
+              value={modelDraft}
+              onChange={(event) => setModelDraft(event.target.value)}
+            />
+            <button
+              type="button"
+              className="primary"
+              data-testid="copilot-endpoint-save"
+              onClick={saveEndpoint}
+            >
+              Save endpoint
+            </button>
           </div>
         </div>
       )}

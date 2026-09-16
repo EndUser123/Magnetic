@@ -80,6 +80,8 @@ export interface IpcDeps {
   getSettings(): {
     autoTranscribe: boolean
     anthropicApiKey: string | null
+    copilotBaseUrl: string | null
+    copilotModel: string | null
     agentAccess: boolean
     agentToken: string | null
     agentMediaFolders: string[]
@@ -88,6 +90,8 @@ export interface IpcDeps {
   setSettings(settings: {
     autoTranscribe?: boolean
     anthropicApiKey?: string | null
+    copilotBaseUrl?: string | null
+    copilotModel?: string | null
     agentAccess?: boolean
     agentToken?: string
     agentMediaFolders?: string[]
@@ -164,6 +168,8 @@ export function registerIpc(deps: IpcDeps, env: NodeJS.ProcessEnv = process.env)
       .strictObject({
         autoTranscribe: z.boolean().optional(),
         anthropicApiKey: z.string().nullable().optional(),
+        copilotBaseUrl: z.string().min(1).nullable().optional(),
+        copilotModel: z.string().min(1).nullable().optional(),
         agentAccess: z.boolean().optional(),
         agentToken: z.string().min(8).optional(),
         agentMediaFolders: z.array(z.string()).optional(),

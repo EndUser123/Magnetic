@@ -28,6 +28,8 @@ const deps: IpcDeps = {
   getSettings: () => ({
     autoTranscribe: true,
     anthropicApiKey: null,
+    copilotBaseUrl: null,
+    copilotModel: null,
     agentAccess: false,
     agentToken: null,
     agentMediaFolders: [],
