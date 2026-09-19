@@ -358,7 +358,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
     if (persistTimer !== null) clearTimeout(persistTimer)
     persistTimer = setTimeout(() => {
       persistTimer = null
-      void window.api.saveSequence(projectId, sequence)
+      // Durable undo: the history bundle rides the same debounced save, so a
+      // restart restores what Ctrl+Z would have reverted (2026-09-18).
+      const history = stack?.serialize()
+      void window.api.saveSequence(projectId, sequence, history)
     }, PERSIST_DELAY_MS)
   }
 
@@ -662,8 +665,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
         persistTimer = null
       }
       const project = await window.api.getProject()
-      stack = new UndoStack(project.sequence)
-      set({ projectId: project.id, sequence: project.sequence })
+      // Durable undo: restore the persisted history when it is intact; fall
+      // back to a fresh stack on the stored sequence when it is not.
+      stack = (project.history !== undefined ? UndoStack.restore(project.history) : null) ?? new UndoStack(project.sequence)
+      set({ projectId: project.id, sequence: stack.current })
     },
 
     applyOp(op) {

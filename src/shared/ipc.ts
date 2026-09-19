@@ -164,9 +164,16 @@ export const sequenceSchema = z.object({
   markers: z.array(markerSchema).optional()
 })
 
+export const historySchema = z.object({
+  present: sequenceSchema,
+  past: z.array(z.object({ before: sequenceSchema, after: sequenceSchema })).max(50),
+  future: z.array(z.object({ before: sequenceSchema, after: sequenceSchema })).max(50)
+})
+
 export const saveSequencePayloadSchema = z.object({
   projectId: z.string().min(1),
-  sequence: sequenceSchema
+  sequence: sequenceSchema,
+  history: historySchema.optional()
 })
 export type SaveSequencePayload = z.infer<typeof saveSequencePayloadSchema>
 
@@ -223,7 +230,7 @@ export interface MagneticApi {
   deleteAsset(assetId: string): Promise<void>
   /** Default project (created on first call), including its persisted sequence. */
   getProject(): Promise<import('./types').Project>
-  saveSequence(projectId: string, sequence: import('./types').Sequence): Promise<void>
+  saveSequence(projectId: string, sequence: import('./types').Sequence, history?: import('./timeline/undo').SerializedHistory): Promise<void>
   /** Extract (once) and return the asset's PCM wav URL; null when it has no audio. */
   ensurePcm(assetId: string): Promise<string | null>
   /** Transcode (once) and return the asset's H.264 preview proxy URL. */

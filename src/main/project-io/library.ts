@@ -4,6 +4,7 @@ import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { app } from 'electron'
 import type { Event, Library, MediaAsset, Project, Rating, Sequence } from '../../shared/types'
+import type { SerializedHistory } from '../../shared/timeline/undo'
 import { rippleDelete } from '../../shared/timeline/ops'
 import { readJson, writeJsonAtomic } from './atomic'
 
@@ -268,10 +269,12 @@ export class LibraryStore {
     return this.projects[0]
   }
 
-  saveProjectSequence(projectId: string, sequence: Sequence): void {
+  saveProjectSequence(projectId: string, sequence: Sequence, history?: SerializedHistory): void {
     const project = this.projects.find((candidate) => candidate.id === projectId)
     if (project === undefined) throw new Error(`unknown project: ${projectId}`)
     project.sequence = sequence
+    if (history === undefined) delete project.history
+    else project.history = history
     this.scheduleSave()
   }
 

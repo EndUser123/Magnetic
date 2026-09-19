@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
 import { z } from 'zod'
+import type { SerializedHistory } from '../shared/timeline/undo'
 import {
   assetIdPayloadSchema,
   importPathsPayloadSchema,
@@ -71,7 +72,7 @@ export interface IpcDeps {
   setRating(assetId: string, rating: 'none' | 'favorite' | 'rejected'): void
   deleteAsset(assetId: string): void
   getProject(): Project
-  saveSequence(projectId: string, sequence: Sequence): void
+  saveSequence(projectId: string, sequence: Sequence, history?: SerializedHistory): void
   ensurePcm(assetId: string): Promise<string | null>
   ensureProxy(assetId: string): Promise<string>
   transcribe(assetId: string): void
@@ -143,7 +144,7 @@ export function registerIpc(deps: IpcDeps, env: NodeJS.ProcessEnv = process.env)
   handleValidated(IPC.projectGet, z.undefined(), async () => deps.getProject())
 
   handleValidated(IPC.projectSaveSequence, saveSequencePayloadSchema, async (payload) => {
-    deps.saveSequence(payload.projectId, payload.sequence)
+    deps.saveSequence(payload.projectId, payload.sequence, payload.history)
   })
 
   handleValidated(IPC.mediaEnsurePcm, assetIdPayloadSchema, (payload) =>

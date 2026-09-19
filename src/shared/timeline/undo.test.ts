@@ -80,6 +80,42 @@ describe('UndoStack', () => {
     expect(stack.canUndo).toBe(false)
   })
 
+  it('serialize/restore survives a JSON round-trip (durable undo across restarts)', () => {
+    const initial = seq([clip('a', 10)])
+    const stack = new UndoStack(initial)
+    stack.apply((s) => append(s, { clip: newClip('b', 5) }))
+    stack.apply((s) => append(s, { clip: newClip('c', 5) }))
+    // A restart serializes through JSON: structural sharing is lost.
+    const data = JSON.parse(JSON.stringify(stack.serialize()))
+    const restored = UndoStack.restore(data)
+    expect(restored).not.toBeNull()
+    expect(restored!.current.spine.map((item) => item.id)).toEqual(['a', 'b', 'c'])
+    expect(restored!.canUndo).toBe(true)
+    const twoClips = restored!.undo()
+    expect(twoClips.spine.map((item) => item.id)).toEqual(['a', 'b'])
+    expect(restored!.canRedo).toBe(true)
+    expect(restored!.redo()).toEqual(stack.current)
+  })
+
+  it('restore rejects a corrupt present and drops corrupt history entries', () => {
+    const broken = { bogus: true } as unknown as Parameters<typeof UndoStack.restore>[0]['present']
+    expect(UndoStack.restore({ present: broken, past: [], future: [] })).toBeNull()
+
+    const stack = new UndoStack(seq([clip('a', 10)]))
+    stack.apply((s) => append(s, { clip: newClip('b', 5) }))
+    const data = stack.serialize()
+    const corruptEntry = { before: { bogus: true }, after: { bogus: true } }
+    const restored = UndoStack.restore({
+      ...data,
+      past: [...data.past, corruptEntry as never]
+    })
+    expect(restored).not.toBeNull()
+    // The corrupt entry is dropped; the valid one survives.
+    expect(restored!.canUndo).toBe(true)
+    restored!.undo()
+    expect(restored!.canUndo).toBe(false)
+  })
+
   it('redo replays the whole group at once', () => {
     const initial = seq([clip('a', 10), clip('b', 10)])
     const stack = new UndoStack(initial)

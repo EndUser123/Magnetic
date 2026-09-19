@@ -11,8 +11,8 @@ const api: MagneticApi = {
   setAssetRating: (assetId, rating) => ipcRenderer.invoke(IPC.assetSetRating, { assetId, rating }),
   deleteAsset: (assetId) => ipcRenderer.invoke(IPC.assetDelete, { assetId }),
   getProject: () => ipcRenderer.invoke(IPC.projectGet),
-  saveSequence: (projectId, sequence) =>
-    ipcRenderer.invoke(IPC.projectSaveSequence, { projectId, sequence }),
+  saveSequence: (projectId, sequence, history) =>
+    ipcRenderer.invoke(IPC.projectSaveSequence, { projectId, sequence, history }),
   ensurePcm: (assetId) => ipcRenderer.invoke(IPC.mediaEnsurePcm, { assetId }),
   ensureProxy: (assetId) => ipcRenderer.invoke(IPC.mediaEnsureProxy, { assetId }),
   diagMemory: () => ipcRenderer.invoke(IPC.diagMemory),

@@ -92,12 +92,15 @@ export interface Event {
 
 /** The real magnetic-timeline sequence (phase 4 kernel). */
 export type { Sequence } from './timeline/model'
+import type { SerializedHistory } from './timeline/undo'
 import type { Sequence } from './timeline/model'
 
 export interface Project {
   id: string
   name: string
   sequence: Sequence
+  /** Durable undo/redo snapshots, restored on launch so edits survive restarts. */
+  history?: SerializedHistory
 }
 
 export interface Library {

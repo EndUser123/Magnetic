@@ -1,5 +1,6 @@
 import type { Sequence } from './model'
 import type { OpResult } from './ops'
+import { validateSequence } from './validate'
 
 /**
  * Snapshot-based undo. Ops return restore inverses, so a history entry is
@@ -81,5 +82,51 @@ export class UndoStack {
     this.past.push(entry)
     this.present = entry.after
     return this.present
+  }
+
+  /**
+   * Snapshot the history for durable storage. The cap bounds the auto-saved
+   * library file: a long session keeps its most recent steps, not all of them.
+   */
+  serialize(pastCap = HISTORY_CAP): SerializedHistory {
+    return {
+      past: this.past.slice(-pastCap),
+      future: this.future.slice(0, pastCap),
+      present: this.present
+    }
+  }
+
+  /**
+   * Rebuild a stack from persisted history. Returns null when the present
+   * state is missing or fails the kernel legality check — the caller then
+   * falls back to a fresh stack on the stored sequence. Individual corrupt
+   * history entries are dropped rather than rejecting the whole bundle.
+   */
+  static restore(data: SerializedHistory): UndoStack | null {
+    if (data === null || typeof data !== 'object' || !('present' in data)) return null
+    if (!isValidSnapshot(data.present)) return null
+    const stack = new UndoStack(data.present)
+    const valid = (entry: { before: Sequence; after: Sequence }): boolean =>
+      entry !== null && typeof entry === 'object' && isValidSnapshot(entry.before) && isValidSnapshot(entry.after)
+    stack.past = (Array.isArray(data.past) ? data.past : []).filter(valid)
+    stack.future = (Array.isArray(data.future) ? data.future : []).filter(valid)
+    return stack
+  }
+}
+
+/** Cap so a long session cannot balloon the auto-saved library file. */
+const HISTORY_CAP = 50
+
+export interface SerializedHistory {
+  past: Array<{ before: Sequence; after: Sequence }>
+  future: Array<{ before: Sequence; after: Sequence }>
+  present: Sequence
+}
+
+function isValidSnapshot(seq: Sequence): boolean {
+  try {
+    return validateSequence(seq).length === 0
+  } catch {
+    return false
   }
 }
